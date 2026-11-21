@@ -23,6 +23,26 @@
   --font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
     system-ui, -apple-system, sans-serif;
   --mono: "SF Mono", "Cascadia Code", "Consolas", "Courier New", monospace;
+
+  /* Motion tokens */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --dur-press: 140ms;
+  --dur-hover: 200ms;
   --dur: 220ms;
+  --dur-overlay: 280ms;
+  --dur-overlay-out: 200ms;
+  --dur-reveal: 520ms;
+  --dur-page: 180ms;
+  --dur-list: 240ms;
+  --stagger: 60ms;
+  --reveal-y: 16px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --reveal-y: 12px;
+    --dur-reveal: 420ms;
+    --stagger: 40ms;
+  }
 }

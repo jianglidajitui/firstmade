@@ -15,8 +15,10 @@ defineEmits(['toggle'])
         <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </button>
-    <div v-show="open" class="acc__panel">
-      <p><slot /></p>
+    <div class="acc__panel" :class="{ 'is-open': open }">
+      <div class="acc__inner">
+        <p><slot /></p>
+      </div>
     </div>
   </div>
 </template>
@@ -39,7 +41,7 @@ defineEmits(['toggle'])
 }
 
 .acc__trigger svg {
-  transition: transform var(--dur) var(--ease);
+  transition: transform var(--dur-hover) var(--ease);
   color: var(--muted);
   flex-shrink: 0;
 }
@@ -49,12 +51,24 @@ defineEmits(['toggle'])
 }
 
 .acc__panel {
-  padding: 0 0 18px;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-overlay) var(--ease);
 }
 
-.acc__panel p {
+.acc__panel.is-open {
+  grid-template-rows: 1fr;
+}
+
+.acc__inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.acc__inner p {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.7;
+  padding: 0 0 18px;
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, nextTick, onUnmounted, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ProductCard from '@/components/product/ProductCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -34,27 +34,85 @@ const sortOptions = [
   { id: 'progress', label: '众筹进度最高' },
 ]
 
-watch(
-  () => route.query,
-  (query) => {
-    filters.q = typeof query.q === 'string' ? query.q : ''
-    filters.category = typeof query.category === 'string' ? query.category : 'all'
-    filters.status = typeof query.status === 'string' ? query.status : 'all'
-    filters.sort = typeof query.sort === 'string' ? query.sort : 'newest'
-  },
-  { immediate: true },
-)
+let syncingFromRoute = false
+let queryTimer = 0
 
-function syncQuery() {
+function readQuery(query) {
+  return {
+    q: typeof query.q === 'string' ? query.q : '',
+    category: typeof query.category === 'string' ? query.category : 'all',
+    status: typeof query.status === 'string' ? query.status : 'all',
+    sort: typeof query.sort === 'string' ? query.sort : 'newest',
+  }
+}
+
+function buildQuery() {
   const query = {}
   if (filters.q.trim()) query.q = filters.q.trim()
   if (filters.category !== 'all') query.category = filters.category
   if (filters.status !== 'all') query.status = filters.status
   if (filters.sort !== 'newest') query.sort = filters.sort
-  router.replace({ path: '/discover', query })
+  return query
 }
 
-watch(filters, syncQuery, { deep: true })
+function queriesEqual(a, b) {
+  return (
+    (a.q || '') === (b.q || '') &&
+    (a.category || 'all') === (b.category || 'all') &&
+    (a.status || 'all') === (b.status || 'all') &&
+    (a.sort || 'newest') === (b.sort || 'newest')
+  )
+}
+
+function syncQuery() {
+  const next = buildQuery()
+  const current = readQuery(route.query)
+  if (queriesEqual(next, current)) return
+  router.replace({ path: '/discover', query: next })
+}
+
+watch(
+  () => route.query,
+  async (query) => {
+    const next = readQuery(query)
+    if (
+      filters.q === next.q &&
+      filters.category === next.category &&
+      filters.status === next.status &&
+      filters.sort === next.sort
+    ) {
+      return
+    }
+    syncingFromRoute = true
+    filters.q = next.q
+    filters.category = next.category
+    filters.status = next.status
+    filters.sort = next.sort
+    await nextTick()
+    syncingFromRoute = false
+  },
+  { immediate: true },
+)
+
+watch(
+  () => filters.q,
+  () => {
+    if (syncingFromRoute) return
+    window.clearTimeout(queryTimer)
+    queryTimer = window.setTimeout(syncQuery, 280)
+  },
+)
+
+watch(
+  () => [filters.category, filters.status, filters.sort],
+  () => {
+    if (syncingFromRoute) return
+    window.clearTimeout(queryTimer)
+    syncQuery()
+  },
+)
+
+onUnmounted(() => window.clearTimeout(queryTimer))
 
 const filtered = computed(() => {
   const q = filters.q.trim().toLowerCase()
@@ -144,22 +202,24 @@ function resetFilters() {
 
       <p class="count mono">{{ filtered.length }} 件产品</p>
 
-      <div v-if="filtered.length" class="grid">
-        <ProductCard
-          v-for="p in filtered"
-          :key="p.id"
-          :product="p"
-          @reserve="(prod) => (reserveTarget.value = prod)"
-          @buy="(prod) => (buyTarget.value = prod)"
-        />
+      <div class="results" :class="{ 'is-empty': !filtered.length }">
+        <TransitionGroup v-if="filtered.length" name="list" tag="div" class="grid">
+          <div v-for="p in filtered" :key="p.id" class="grid__item">
+            <ProductCard
+              :product="p"
+              @reserve="(prod) => (reserveTarget.value = prod)"
+              @buy="(prod) => (buyTarget.value = prod)"
+            />
+          </div>
+        </TransitionGroup>
+        <EmptyState
+          v-else
+          title="没有符合条件的产品"
+          description="试试调整关键词、分类或状态筛选。"
+        >
+          <BaseButton variant="secondary" @click="resetFilters">重置筛选</BaseButton>
+        </EmptyState>
       </div>
-      <EmptyState
-        v-else
-        title="没有符合条件的产品"
-        description="试试调整关键词、分类或状态筛选。"
-      >
-        <BaseButton variant="secondary" @click="resetFilters">重置筛选</BaseButton>
-      </EmptyState>
     </div>
 
     <ReservationModal
@@ -205,6 +265,11 @@ function resetFilters() {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: #fff;
+  transition: border-color var(--dur-hover) var(--ease);
+}
+
+.search:focus-within {
+  border-color: var(--ink);
 }
 
 .search input {
@@ -244,6 +309,10 @@ function resetFilters() {
   border: 1px solid var(--line);
   font-size: 13px;
   background: #fff;
+  transition:
+    background var(--dur-hover) var(--ease),
+    color var(--dur-hover) var(--ease),
+    border-color var(--dur-hover) var(--ease);
 }
 
 .chips button.active {
@@ -267,21 +336,72 @@ function resetFilters() {
   font-size: 12px;
 }
 
+.results {
+  min-height: 320px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
+  position: relative;
+}
+
+.grid__item {
+  min-width: 0;
+}
+
+.list-enter-active,
+.list-leave-active {
+  transition:
+    opacity var(--dur-list) var(--ease),
+    transform var(--dur-list) var(--ease);
+}
+
+.list-move {
+  transition: transform var(--dur-list) var(--ease);
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.list-leave-active {
+  position: absolute;
+  width: calc((100% - 40px) / 3);
 }
 
 @media (max-width: 1100px) {
   .grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .list-leave-active {
+    width: calc((100% - 20px) / 2);
+  }
 }
 
 @media (max-width: 640px) {
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .list-leave-active {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list-enter-active,
+  .list-leave-active,
+  .list-move {
+    transition: none;
   }
 }
 </style>

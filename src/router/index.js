@@ -33,20 +33,54 @@ const routes = [
   },
 ]
 
+function waitForHashEl(hash, maxFrames = 48) {
+  return new Promise((resolve) => {
+    let frames = 0
+    const tick = () => {
+      const el = document.querySelector(hash)
+      if (el) {
+        resolve(el)
+        return
+      }
+      frames += 1
+      if (frames >= maxFrames) {
+        resolve(null)
+        return
+      }
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+}
+
 const router = createRouter({
-  // 与 Vite base 对齐，保证 GitHub Pages 子路径下路由正常
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior(to, _from, saved) {
-    if (saved) return saved
+  scrollBehavior(to, from, savedPosition) {
+    // 浏览器前进/后退：恢复历史位置（瞬时，不用 smooth）
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    // 同页仅改 query（筛选/搜索）：保持滚动位置
+    if (from.name && to.path === from.path && to.hash === from.hash) {
+      return false
+    }
+
+    // 锚点：等内容挂载后再平滑定位，并预留导航高度
     if (to.hash) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ el: to.hash, behavior: 'smooth' })
-        }, 50)
+      return waitForHashEl(to.hash).then((el) => {
+        if (!el) return { top: 0, left: 0 }
+        return {
+          el: to.hash,
+          top: 80,
+          behavior: 'smooth',
+        }
       })
     }
-    return { top: 0 }
+
+    // 进入新页面：瞬时回顶，避免从旧位置一路滚上去
+    return { top: 0, left: 0 }
   },
 })
 

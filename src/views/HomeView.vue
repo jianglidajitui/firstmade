@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ProductCard from '@/components/product/ProductCard.vue'
 import ProductImage from '@/components/ui/ProductImage.vue'
@@ -9,7 +9,7 @@ import ReservationModal from '@/components/reservation/ReservationModal.vue'
 import PurchaseModal from '@/components/purchase/PurchaseModal.vue'
 import { useStore } from '@/composables/useStore'
 import { useReveal } from '@/composables/useReveal'
-import { formatMoney, remainingLabel } from '@/utils/format'
+import { remainingLabel } from '@/utils/format'
 
 const router = useRouter()
 const {
@@ -24,6 +24,7 @@ const {
 
 const reserveTarget = ref(null)
 const buyTarget = ref(null)
+const heroReady = ref(false)
 const revealCrowdfund = useReveal()
 const revealStory = useReveal()
 const revealStock = useReveal()
@@ -45,29 +46,46 @@ function openReserve(product) {
 function openBuy(product) {
   buyTarget.value = product
 }
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    heroReady.value = true
+  })
+})
 </script>
 
 <template>
   <div class="home">
-    <section class="hero container">
+    <section class="hero container" :class="{ 'is-ready': heroReady }">
       <div class="hero__copy">
-        <p class="eyebrow">001 / NEW RELEASE</p>
-        <h1 class="display">好产品，值得被制造。</h1>
-        <p class="lead">
+        <p class="eyebrow hero-in" style="--i: 0">001 / NEW RELEASE</p>
+        <h1 class="display hero-in" style="--i: 1">好产品，值得被制造。</h1>
+        <p class="lead hero-in" style="--i: 2">
           用 1 元支持你期待的新品。达到目标人数后，工厂启动生产。
         </p>
-        <div class="hero__actions">
-          <BaseButton size="lg" @click="router.push('/discover')">发现新品</BaseButton>
+        <div class="hero__actions hero-in" style="--i: 3">
+          <BaseButton size="lg" arrow @click="router.push('/discover')">发现新品</BaseButton>
           <BaseButton size="lg" variant="secondary" @click="router.push('/studio')">
             我是工厂，发布新品
           </BaseButton>
         </div>
-        <p class="hero__slogan">让好产品，从你的支持开始。</p>
+        <p class="hero__slogan hero-in" style="--i: 4">让好产品，从你的支持开始。</p>
       </div>
 
-      <article v-if="hero" class="hero__product" @click="router.push(`/product/${hero.id}`)">
+      <article
+        v-if="hero"
+        class="hero__product hero-in hero-in--visual"
+        style="--i: 2"
+        @click="router.push(`/product/${hero.id}`)"
+      >
         <div class="hero__visual">
-          <ProductImage :src="hero.images?.[0]" :alt="hero.name" dark />
+          <ProductImage
+            :src="hero.images?.[0]"
+            :alt="hero.name"
+            dark
+            eager
+            priority="high"
+          />
         </div>
         <div class="hero__info">
           <p class="eyebrow">FEATURED · HP-01</p>
@@ -96,32 +114,33 @@ function openBuy(product) {
     </section>
 
     <section ref="revealCrowdfund" class="section container reveal">
-      <div class="section__head">
+      <div class="section__head" data-reveal-child>
         <div>
           <p class="eyebrow">LIVE CROWDFUNDING</p>
           <h2>正在发生的新品</h2>
         </div>
-        <BaseButton variant="ghost" @click="router.push('/discover?status=crowdfunding')">
+        <BaseButton variant="ghost" arrow @click="router.push('/discover?status=crowdfunding')">
           查看全部
         </BaseButton>
       </div>
       <div class="grid">
-        <ProductCard
-          v-for="p in liveProducts"
+        <div
+          v-for="(p, i) in liveProducts"
           :key="p.id"
-          :product="p"
-          @reserve="openReserve"
-          @buy="openBuy"
-        />
+          data-reveal-child
+          :style="{ '--reveal-delay': `${Math.min((i + 1) * 60, 240)}ms` }"
+        >
+          <ProductCard :product="p" @reserve="openReserve" @buy="openBuy" />
+        </div>
       </div>
     </section>
 
     <section v-if="story" ref="revealStory" class="story reveal">
       <div class="container story__inner">
-        <div class="story__media">
+        <div class="story__media" data-reveal-child>
           <ProductImage :src="story.images?.[0]" :alt="story.name" dark />
         </div>
-        <div class="story__copy">
+        <div class="story__copy" data-reveal-child style="--reveal-delay: 80ms">
           <p class="eyebrow">DESIGNED TO BEGIN</p>
           <h2>开放结构，听见路况与节奏。</h2>
           <ul>
@@ -130,7 +149,7 @@ function openBuy(product) {
               <span>{{ f.text }}</span>
             </li>
           </ul>
-          <BaseButton variant="light" @click="router.push(`/product/${story.id}`)">
+          <BaseButton variant="light" arrow @click="router.push(`/product/${story.id}`)">
             查看产品
           </BaseButton>
         </div>
@@ -138,28 +157,29 @@ function openBuy(product) {
     </section>
 
     <section ref="revealStock" class="section container reveal">
-      <div class="section__head">
+      <div class="section__head" data-reveal-child>
         <div>
           <p class="eyebrow">IN STOCK</p>
           <h2>已成为现货</h2>
         </div>
-        <BaseButton variant="ghost" @click="router.push('/discover?status=in_stock')">
+        <BaseButton variant="ghost" arrow @click="router.push('/discover?status=in_stock')">
           全部现货
         </BaseButton>
       </div>
       <div class="grid stock-grid">
-        <ProductCard
-          v-for="p in stockProducts"
+        <div
+          v-for="(p, i) in stockProducts"
           :key="p.id"
-          :product="p"
-          @reserve="openReserve"
-          @buy="openBuy"
-        />
+          data-reveal-child
+          :style="{ '--reveal-delay': `${Math.min((i + 1) * 60, 240)}ms` }"
+        >
+          <ProductCard :product="p" @reserve="openReserve" @buy="openBuy" />
+        </div>
       </div>
     </section>
 
     <section id="how-it-works" ref="revealHow" class="section container reveal how">
-      <div class="section__head">
+      <div class="section__head" data-reveal-child>
         <div>
           <p class="eyebrow">HOW IT WORKS</p>
           <h2>如何参与</h2>
@@ -167,37 +187,32 @@ function openBuy(product) {
         </div>
       </div>
       <ol class="steps">
-        <li>
-          <span class="mono">01</span>
-          <h3>发现新品</h3>
-          <p>浏览工厂尚未量产的产品方案。</p>
-        </li>
-        <li>
-          <span class="mono">02</span>
-          <h3>1 元预定</h3>
-          <p>支付 1 元表达支持意向，计入目标人数。</p>
-        </li>
-        <li>
-          <span class="mono">03</span>
-          <h3>达标生产</h3>
-          <p>达到目标人数后，项目进入待生产与生产。</p>
-        </li>
-        <li>
-          <span class="mono">04</span>
-          <h3>现货上架</h3>
-          <p>工厂完成后按实际售价开放购买。</p>
+        <li
+          v-for="(step, i) in [
+            { n: '01', t: '发现新品', d: '浏览工厂尚未量产的产品方案。' },
+            { n: '02', t: '1 元预定', d: '支付 1 元表达支持意向，计入目标人数。' },
+            { n: '03', t: '达标生产', d: '达到目标人数后，项目进入待生产与生产。' },
+            { n: '04', t: '现货上架', d: '工厂完成后按实际售价开放购买。' },
+          ]"
+          :key="step.n"
+          data-reveal-child
+          :style="{ '--reveal-delay': `${Math.min((i + 1) * 60, 240)}ms` }"
+        >
+          <span class="mono">{{ step.n }}</span>
+          <h3>{{ step.t }}</h3>
+          <p>{{ step.d }}</p>
         </li>
       </ol>
     </section>
 
     <section ref="revealFactory" class="section container reveal factory">
-      <div class="factory__card">
+      <div class="factory__card" data-reveal-child>
         <p class="eyebrow">FOR FACTORIES</p>
         <h2>先听见市场，再启动生产。</h2>
         <p class="lead">
           发布新品、观察支持人数、展示生产进度。用真实意向降低试产风险。
         </p>
-        <BaseButton size="lg" @click="router.push('/studio')">发布你的第一款新品</BaseButton>
+        <BaseButton size="lg" arrow @click="router.push('/studio')">发布你的第一款新品</BaseButton>
       </div>
     </section>
 
@@ -222,6 +237,24 @@ function openBuy(product) {
   align-items: center;
   padding-top: clamp(48px, 8vw, 88px);
   padding-bottom: clamp(64px, 8vw, 100px);
+}
+
+.hero-in {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 480ms var(--ease),
+    transform 480ms var(--ease);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+
+.hero-in--visual {
+  transform: translateY(12px) scale(0.98);
+}
+
+.hero.is-ready .hero-in {
+  opacity: 1;
+  transform: none;
 }
 
 .hero__copy .display {
@@ -283,6 +316,7 @@ function openBuy(product) {
 .hero__support .accent {
   color: var(--accent);
   font-size: 22px;
+  font-variant-numeric: tabular-nums;
 }
 
 .days {
@@ -304,10 +338,13 @@ function openBuy(product) {
   opacity: 0.72;
   text-decoration: underline;
   text-underline-offset: 3px;
+  transition: opacity var(--dur-hover) var(--ease);
 }
 
-.link:hover {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    opacity: 1;
+  }
 }
 
 .section__head {
@@ -456,6 +493,10 @@ function openBuy(product) {
   .hero__copy .display {
     max-width: none;
   }
+
+  .hero-in {
+    transform: translateY(12px);
+  }
 }
 
 @media (max-width: 640px) {
@@ -468,6 +509,14 @@ function openBuy(product) {
   .section__head {
     align-items: start;
     flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-in {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }
 </style>

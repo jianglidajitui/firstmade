@@ -38,7 +38,13 @@ defineProps({
 .progress__fill {
   height: 100%;
   background: var(--ink);
-  transition: width 300ms var(--ease);
+  transition: width 320ms var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress__fill {
+    transition: none;
+  }
 }
 
 .progress__fill.is-accent {

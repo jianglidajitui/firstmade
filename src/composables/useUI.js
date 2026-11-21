@@ -1,4 +1,5 @@
 import { reactive, watch } from 'vue'
+import { lockBodyScroll, unlockBodyScroll } from '@/composables/useScrollLock'
 
 const ui = reactive({
   reservationsOpen: false,
@@ -6,14 +7,12 @@ const ui = reactive({
   modalLocks: 0,
 })
 
-function syncBodyLock() {
-  const locked = ui.reservationsOpen || ui.mobileNavOpen || ui.modalLocks > 0
-  document.body.classList.toggle('is-locked', locked)
-}
-
 watch(
-  () => [ui.reservationsOpen, ui.mobileNavOpen, ui.modalLocks],
-  syncBodyLock,
+  () => ui.mobileNavOpen,
+  (open, wasOpen) => {
+    if (open && !wasOpen) lockBodyScroll()
+    if (!open && wasOpen) unlockBodyScroll()
+  },
 )
 
 export function useUI() {
@@ -36,12 +35,13 @@ export function useUI() {
 
   function lockScroll() {
     ui.modalLocks += 1
-    syncBodyLock()
+    lockBodyScroll()
   }
 
   function unlockScroll() {
-    ui.modalLocks = Math.max(0, ui.modalLocks - 1)
-    syncBodyLock()
+    if (ui.modalLocks <= 0) return
+    ui.modalLocks -= 1
+    unlockBodyScroll()
   }
 
   return {

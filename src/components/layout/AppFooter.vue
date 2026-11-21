@@ -7,7 +7,10 @@ async function goHow() {
   if (router.currentRoute.value.path !== '/') {
     await router.push({ path: '/', hash: '#how-it-works' })
   } else {
-    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })
+    const el = document.getElementById('how-it-works')
+    if (!el) return
+    const top = el.getBoundingClientRect().top + window.scrollY - 80
+    window.scrollTo({ top, behavior: 'smooth' })
   }
 }
 </script>

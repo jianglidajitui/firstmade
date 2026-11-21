@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useUI } from '@/composables/useUI'
 
 const props = defineProps({
@@ -16,8 +16,10 @@ const { lockScroll, unlockScroll } = useUI()
 const panel = ref(null)
 let lastFocus = null
 let locked = false
+let closing = false
 
 function close() {
+  if (closing || !props.open) return
   emit('close')
 }
 
@@ -26,20 +28,34 @@ function onKey(e) {
   if (e.key === 'Escape') close()
 }
 
+function onEnter() {
+  if (locked) return
+  lockScroll()
+  locked = true
+  lastFocus = document.activeElement
+  nextTick(() => {
+    panel.value?.querySelector('button, [href], input, select, textarea')?.focus()
+  })
+}
+
+function onAfterLeave() {
+  closing = false
+  // 离开过程中若再次打开，不释放滚动锁
+  if (props.open || !locked) return
+  unlockScroll()
+  locked = false
+  if (lastFocus?.focus) lastFocus.focus()
+  lastFocus = null
+}
+
 watch(
   () => props.open,
   (open) => {
-    if (open && !locked) {
-      lockScroll()
-      locked = true
-      lastFocus = document.activeElement
-      requestAnimationFrame(() => {
-        panel.value?.querySelector('button, [href], input, select, textarea')?.focus()
-      })
-    } else if (!open && locked) {
-      unlockScroll()
-      locked = false
-      if (lastFocus?.focus) lastFocus.focus()
+    if (open) {
+      closing = false
+      onEnter()
+    } else {
+      closing = true
     }
   },
 )
@@ -47,31 +63,47 @@ watch(
 onMounted(() => window.addEventListener('keydown', onKey))
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey)
-  if (locked) unlockScroll()
+  if (locked) {
+    unlockScroll()
+    locked = false
+  }
 })
 </script>
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="modal" role="dialog" aria-modal="true" :aria-label="title">
-      <div class="modal__backdrop" @click="close" />
-      <div ref="panel" class="modal__panel" :style="{ maxWidth: width }" tabindex="-1">
-        <header class="modal__header">
-          <h3>{{ title }}</h3>
-          <button class="modal__close" type="button" aria-label="关闭" @click="close">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
-            </svg>
-          </button>
-        </header>
-        <div class="modal__body">
-          <slot />
+    <Transition name="modal" @after-leave="onAfterLeave">
+      <div
+        v-if="open"
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="title"
+      >
+        <div class="modal__backdrop" @click="close" />
+        <div
+          ref="panel"
+          class="modal__panel"
+          :style="{ maxWidth: width }"
+          tabindex="-1"
+        >
+          <header class="modal__header">
+            <h3>{{ title }}</h3>
+            <button class="modal__close" type="button" aria-label="关闭" @click="close">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
+              </svg>
+            </button>
+          </header>
+          <div class="modal__body">
+            <slot />
+          </div>
+          <footer v-if="$slots.footer" class="modal__footer">
+            <slot name="footer" />
+          </footer>
         </div>
-        <footer v-if="$slots.footer" class="modal__footer">
-          <slot name="footer" />
-        </footer>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -99,7 +131,6 @@ onUnmounted(() => {
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  animation: rise 220ms var(--ease);
 }
 
 .modal__header {
@@ -123,11 +154,16 @@ onUnmounted(() => {
   place-items: center;
   border-radius: var(--radius-sm);
   color: var(--muted);
+  transition:
+    background var(--dur-hover) var(--ease),
+    color var(--dur-hover) var(--ease);
 }
 
-.modal__close:hover {
-  background: rgba(23, 23, 23, 0.05);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .modal__close:hover {
+    background: rgba(23, 23, 23, 0.05);
+    color: var(--ink);
+  }
 }
 
 .modal__body {
@@ -142,14 +178,34 @@ onUnmounted(() => {
   border-top: 1px solid var(--line);
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.modal-enter-active .modal__backdrop {
+  transition: opacity var(--dur-overlay) var(--ease);
+}
+
+.modal-leave-active .modal__backdrop {
+  transition: opacity var(--dur-overlay-out) var(--ease-out);
+}
+
+.modal-enter-from .modal__backdrop,
+.modal-leave-to .modal__backdrop {
+  opacity: 0;
+}
+
+.modal-enter-active .modal__panel {
+  transition:
+    opacity var(--dur-overlay) var(--ease),
+    transform var(--dur-overlay) var(--ease);
+}
+
+.modal-leave-active .modal__panel {
+  transition:
+    opacity var(--dur-overlay-out) var(--ease-out),
+    transform var(--dur-overlay-out) var(--ease-out);
+}
+
+.modal-enter-from .modal__panel,
+.modal-leave-to .modal__panel {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
 }
 </style>

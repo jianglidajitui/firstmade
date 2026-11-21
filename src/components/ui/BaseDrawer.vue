@@ -1,5 +1,6 @@
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useUI } from '@/composables/useUI'
 
 const props = defineProps({
   open: Boolean,
@@ -11,10 +12,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+const { lockScroll, unlockScroll } = useUI()
 const panel = ref(null)
 let lastFocus = null
+let locked = false
 
 function close() {
+  if (!props.open) return
   emit('close')
 }
 
@@ -22,49 +26,68 @@ function onKey(e) {
   if (props.open && e.key === 'Escape') close()
 }
 
+function onEnter() {
+  if (locked) return
+  lockScroll()
+  locked = true
+  lastFocus = document.activeElement
+  nextTick(() => {
+    panel.value?.querySelector('button, [href], input')?.focus()
+  })
+}
+
+function onAfterLeave() {
+  if (props.open || !locked) return
+  unlockScroll()
+  locked = false
+  if (lastFocus?.focus) lastFocus.focus()
+  lastFocus = null
+}
+
 watch(
   () => props.open,
   (open) => {
-    if (open) {
-      lastFocus = document.activeElement
-      requestAnimationFrame(() => {
-        panel.value?.querySelector('button, [href], input')?.focus()
-      })
-    } else if (lastFocus?.focus) {
-      lastFocus.focus()
-    }
+    if (open) onEnter()
   },
 )
 
 onMounted(() => window.addEventListener('keydown', onKey))
-onUnmounted(() => window.removeEventListener('keydown', onKey))
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKey)
+  if (locked) {
+    unlockScroll()
+    locked = false
+  }
+})
 </script>
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="drawer" :class="`is-${side}`">
-      <div class="drawer__backdrop" @click="close" />
-      <aside
-        ref="panel"
-        class="drawer__panel"
-        role="dialog"
-        aria-modal="true"
-        :aria-label="title"
-        tabindex="-1"
-      >
-        <header class="drawer__header">
-          <h3>{{ title }}</h3>
-          <button class="drawer__close" type="button" aria-label="关闭" @click="close">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
-            </svg>
-          </button>
-        </header>
-        <div class="drawer__body">
-          <slot />
-        </div>
-      </aside>
-    </div>
+    <Transition :name="`drawer-${side}`" @after-leave="onAfterLeave">
+      <div v-if="open" class="drawer" :class="`is-${side}`">
+        <div class="drawer__backdrop" @click="close" />
+        <aside
+          ref="panel"
+          class="drawer__panel"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="title"
+          tabindex="-1"
+        >
+          <header class="drawer__header">
+            <h3>{{ title }}</h3>
+            <button class="drawer__close" type="button" aria-label="关闭" @click="close">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
+              </svg>
+            </button>
+          </header>
+          <div class="drawer__body">
+            <slot />
+          </div>
+        </aside>
+      </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -90,7 +113,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
   box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
-  animation: slide 240ms var(--ease);
 }
 
 .is-right .drawer__panel {
@@ -121,11 +143,16 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
   place-items: center;
   border-radius: var(--radius-sm);
   color: var(--muted);
+  transition:
+    background var(--dur-hover) var(--ease),
+    color var(--dur-hover) var(--ease);
 }
 
-.drawer__close:hover {
-  background: rgba(23, 23, 23, 0.05);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .drawer__close:hover {
+    background: rgba(23, 23, 23, 0.05);
+    color: var(--ink);
+  }
 }
 
 .drawer__body {
@@ -134,29 +161,40 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
   padding: 16px 20px 28px;
 }
 
-@keyframes slide {
-  from {
-    transform: translateX(16px);
-    opacity: 0.6;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
+.drawer-right-enter-active .drawer__backdrop,
+.drawer-left-enter-active .drawer__backdrop {
+  transition: opacity var(--dur-overlay) var(--ease);
 }
 
-.is-left .drawer__panel {
-  animation-name: slide-left;
+.drawer-right-leave-active .drawer__backdrop,
+.drawer-left-leave-active .drawer__backdrop {
+  transition: opacity var(--dur-overlay-out) var(--ease-out);
 }
 
-@keyframes slide-left {
-  from {
-    transform: translateX(-16px);
-    opacity: 0.6;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
+.drawer-right-enter-from .drawer__backdrop,
+.drawer-right-leave-to .drawer__backdrop,
+.drawer-left-enter-from .drawer__backdrop,
+.drawer-left-leave-to .drawer__backdrop {
+  opacity: 0;
+}
+
+.drawer-right-enter-active .drawer__panel,
+.drawer-left-enter-active .drawer__panel {
+  transition: transform var(--dur-overlay) var(--ease);
+}
+
+.drawer-right-leave-active .drawer__panel,
+.drawer-left-leave-active .drawer__panel {
+  transition: transform var(--dur-overlay-out) var(--ease-out);
+}
+
+.drawer-right-enter-from .drawer__panel,
+.drawer-right-leave-to .drawer__panel {
+  transform: translateX(100%);
+}
+
+.drawer-left-enter-from .drawer__panel,
+.drawer-left-leave-to .drawer__panel {
+  transform: translateX(-100%);
 }
 </style>

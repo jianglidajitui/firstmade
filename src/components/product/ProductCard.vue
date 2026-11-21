@@ -25,6 +25,9 @@ const days = computed(() => daysLeft(props.product))
 const reserved = computed(() => hasReserved(props.product.id))
 const isCrowd = computed(() => props.product.status === 'crowdfunding')
 const isStock = computed(() => props.product.status === 'in_stock')
+const isDarkMedia = computed(
+  () => props.product.id === 'fm-oe-004' || props.product.id === 'fm-hp-001',
+)
 
 function goDetail() {
   router.push(`/product/${props.product.id}`)
@@ -46,104 +49,121 @@ function onAction(e) {
 
 <template>
   <article class="card" @click="goDetail">
-    <div class="card__media" :class="{ 'is-dark': product.images?.[0]?.includes('open-ear') || product.id === 'fm-oe-004' || product.id === 'fm-hp-001' }">
-      <ProductImage
-        :src="product.images?.[0]"
-        :alt="product.name"
-        :dark="product.id === 'fm-oe-004' || product.id === 'fm-hp-001'"
-      />
-      <div class="card__badge">
-        <StatusBadge :status="product.status" />
+    <div class="card__lift">
+      <div class="card__media" :class="{ 'is-dark': isDarkMedia }">
+        <div class="card__img">
+          <ProductImage
+            :src="product.images?.[0]"
+            :alt="product.name"
+            :dark="isDarkMedia"
+          />
+        </div>
+        <div class="card__badge">
+          <StatusBadge :status="product.status" />
+        </div>
       </div>
-    </div>
-    <div class="card__body">
-      <div class="card__meta eyebrow">{{ product.factory?.name }} · {{ product.factory?.region }}</div>
-      <h3>{{ product.name }}</h3>
-      <p class="card__tagline">{{ product.tagline }}</p>
+      <div class="card__body">
+        <div class="card__meta eyebrow">{{ product.factory?.name }} · {{ product.factory?.region }}</div>
+        <h3>{{ product.name }}</h3>
+        <p class="card__tagline">{{ product.tagline }}</p>
 
-      <template v-if="isCrowd">
-        <div class="card__stats">
-          <span class="mono accent">{{ product.supporters }}</span>
-          <span class="muted">/ {{ product.targetSupporters }} 人支持</span>
-          <span class="spacer" />
-          <span class="muted">{{ remainingLabel(days) }}</span>
-        </div>
-        <ProgressBar :value="progress" />
-        <div class="card__foot">
-          <span class="muted estimate">预计售价 {{ formatMoney(product.estimatedPrice) }}</span>
-          <BaseButton size="sm" :disabled="reserved" @click="onAction">
-            {{ reserved ? '已预定' : '¥1 预定' }}
-          </BaseButton>
-        </div>
-      </template>
+        <template v-if="isCrowd">
+          <div class="card__stats">
+            <span class="mono accent">{{ product.supporters }}</span>
+            <span class="muted">/ {{ product.targetSupporters }} 人支持</span>
+            <span class="spacer" />
+            <span class="muted">{{ remainingLabel(days) }}</span>
+          </div>
+          <ProgressBar :value="progress" />
+          <div class="card__foot">
+            <span class="muted estimate">预计售价 {{ formatMoney(product.estimatedPrice) }}</span>
+            <BaseButton size="sm" :disabled="reserved" @click="onAction">
+              {{ reserved ? '已预定' : '¥1 预定' }}
+            </BaseButton>
+          </div>
+        </template>
 
-      <template v-else-if="isStock">
-        <div class="card__stats stock">
-          <span class="price">{{ formatMoney(product.salePrice) }}</span>
-          <span class="muted">库存 {{ product.stock }}</span>
-        </div>
-        <div class="card__foot">
-          <span class="muted">现货发售</span>
-          <BaseButton size="sm" @click="onAction">立即购买</BaseButton>
-        </div>
-      </template>
+        <template v-else-if="isStock">
+          <div class="card__stats stock">
+            <span class="price">{{ formatMoney(product.salePrice) }}</span>
+            <span class="muted">库存 {{ product.stock }}</span>
+          </div>
+          <div class="card__foot">
+            <span class="muted">现货发售</span>
+            <BaseButton size="sm" @click="onAction">立即购买</BaseButton>
+          </div>
+        </template>
 
-      <template v-else>
-        <div class="card__stats">
-          <span class="mono">{{ product.supporters }}</span>
-          <span class="muted">/ {{ product.targetSupporters }} 人已支持</span>
-        </div>
-        <div class="card__foot">
-          <span class="muted">查看项目进度</span>
-          <BaseButton size="sm" variant="secondary" @click.stop="goDetail">查看详情</BaseButton>
-        </div>
-      </template>
+        <template v-else>
+          <div class="card__stats">
+            <span class="mono">{{ product.supporters }}</span>
+            <span class="muted">/ {{ product.targetSupporters }} 人已支持</span>
+          </div>
+          <div class="card__foot">
+            <span class="muted">查看项目进度</span>
+            <BaseButton size="sm" variant="secondary" @click.stop="goDetail">查看详情</BaseButton>
+          </div>
+        </template>
+      </div>
     </div>
   </article>
 </template>
 
 <style scoped>
 .card {
+  height: 100%;
+}
+
+.card__lift {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
   cursor: pointer;
-  transition:
-    border-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease);
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  transition:
+    border-color var(--dur-hover) var(--ease),
+    box-shadow var(--dur-hover) var(--ease),
+    transform var(--dur-hover) var(--ease);
 }
 
-.card:hover {
-  border-color: #c8c8c0;
-  box-shadow: var(--shadow);
-}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .card__lift {
+    border-color: #c8c8c0;
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+  }
 
-.card:hover .card__media :deep(img) {
-  transform: scale(1.03);
+  .card:hover .card__img {
+    transform: scale(1.035);
+  }
 }
 
 .card__media {
   position: relative;
   aspect-ratio: 1 / 1;
   background: #ecece7;
+  overflow: hidden;
 }
 
 .card__media.is-dark {
   background: #111;
 }
 
-.card__media :deep(img) {
+.card__img {
+  width: 100%;
+  height: 100%;
   transition: transform 280ms var(--ease);
+  transform-origin: center center;
 }
 
 .card__badge {
   position: absolute;
   top: 12px;
   left: 12px;
+  z-index: 1;
 }
 
 .card__body {
@@ -192,12 +212,14 @@ function onAction(e) {
 .accent {
   color: var(--accent);
   font-size: 18px;
+  font-variant-numeric: tabular-nums;
 }
 
 .price {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .muted {

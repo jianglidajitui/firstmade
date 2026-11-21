@@ -5,20 +5,24 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* 不用全局 smooth，避免干扰路由跳转与历史位置恢复 */
+  scroll-behavior: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .reveal,
+  .reveal [data-reveal-child],
+  .hero-in {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 
@@ -35,6 +39,7 @@ body {
 
 body.is-locked {
   overflow: hidden;
+  touch-action: none;
 }
 
 #app {
@@ -123,6 +128,7 @@ p {
 
 .mono {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .sr-only {
@@ -140,15 +146,49 @@ p {
 .page-main {
   flex: 1;
   padding-top: var(--header-h);
+  position: relative;
 }
 
-.reveal {
+/* Section reveal：容器本身不位移，避免深色背景一起淡入 */
+.reveal [data-reveal-child] {
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  transform: translateY(var(--reveal-y));
+  transition:
+    opacity var(--dur-reveal) var(--ease),
+    transform var(--dur-reveal) var(--ease);
+  transition-delay: var(--reveal-delay, 0ms);
 }
 
-.reveal.is-visible {
+.reveal.is-visible [data-reveal-child],
+.reveal [data-reveal-child].is-visible {
   opacity: 1;
   transform: none;
+}
+
+/* 兼容仅标记容器的旧用法 */
+.reveal.reveal--block {
+  opacity: 0;
+  transform: translateY(var(--reveal-y));
+  transition:
+    opacity var(--dur-reveal) var(--ease),
+    transform var(--dur-reveal) var(--ease);
+}
+
+.reveal.reveal--block.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* 页面切换：仅淡入淡出，不做位移/缩放 */
+.page-fade-enter-active {
+  transition: opacity var(--dur-page) var(--ease);
+}
+
+.page-fade-leave-active {
+  transition: opacity 120ms var(--ease-out);
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
 }

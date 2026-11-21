@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   src: String,
@@ -12,19 +12,36 @@ const props = defineProps({
     default: true,
   },
   dark: Boolean,
+  eager: Boolean,
+  priority: {
+    type: String,
+    default: '',
+  },
 })
 
 const failed = ref(false)
+const loaded = ref(false)
+
+const loadingAttr = computed(() => (props.eager ? 'eager' : 'lazy'))
+const fetchPriority = computed(() => props.priority || undefined)
 
 watch(
   () => props.src,
   () => {
     failed.value = false
+    loaded.value = false
   },
 )
 
+function onLoad(e) {
+  loaded.value = true
+  // 缓存命中时部分浏览器仍触发 load，保持及时可见
+  if (e?.target?.complete) loaded.value = true
+}
+
 function onError() {
   failed.value = true
+  loaded.value = false
 }
 </script>
 
@@ -34,9 +51,11 @@ function onError() {
       v-if="src && !failed"
       :src="src"
       :alt="alt"
-      loading="lazy"
+      :loading="loadingAttr"
+      :fetchpriority="fetchPriority"
       decoding="async"
-      :class="{ contain }"
+      :class="{ contain, 'is-loaded': loaded }"
+      @load="onLoad"
       @error="onError"
     />
     <div v-else class="fallback" aria-hidden="true">
@@ -69,6 +88,12 @@ img {
   width: 100%;
   height: 100%;
   object-position: center;
+  opacity: 0;
+  transition: opacity 220ms var(--ease);
+}
+
+img.is-loaded {
+  opacity: 1;
 }
 
 img.contain {
@@ -94,5 +119,12 @@ img:not(.contain) {
 
 .is-dark .fallback {
   color: var(--dark-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img {
+    opacity: 1;
+    transition: none;
+  }
 }
 </style>

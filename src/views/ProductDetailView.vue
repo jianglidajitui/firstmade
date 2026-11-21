@@ -70,11 +70,16 @@ function scrollToTimeline() {
     <section class="container top">
       <div class="gallery">
         <div class="gallery__main">
-          <ProductImage
-            :src="product.images?.[activeImage] || product.images?.[0]"
-            :alt="product.name"
-            :dark="product.id === 'fm-hp-001' || product.id === 'fm-oe-004'"
-          />
+          <Transition name="fade-img" mode="out-in">
+            <ProductImage
+              :key="activeImage"
+              :src="product.images?.[activeImage] || product.images?.[0]"
+              :alt="product.name"
+              :dark="product.id === 'fm-hp-001' || product.id === 'fm-oe-004'"
+              eager
+              priority="high"
+            />
+          </Transition>
         </div>
         <div v-if="product.images?.length > 1" class="thumbs">
           <button
@@ -313,6 +318,17 @@ function scrollToTimeline() {
   overflow: hidden;
   background: #ecece7;
   border: 1px solid var(--line);
+  position: relative;
+}
+
+.fade-img-enter-active,
+.fade-img-leave-active {
+  transition: opacity 200ms var(--ease);
+}
+
+.fade-img-enter-from,
+.fade-img-leave-to {
+  opacity: 0;
 }
 
 .thumbs {
@@ -328,6 +344,9 @@ function scrollToTimeline() {
   overflow: hidden;
   border: 1px solid var(--line);
   opacity: 0.7;
+  transition:
+    opacity var(--dur-hover) var(--ease),
+    border-color var(--dur-hover) var(--ease);
 }
 
 .thumbs button.active {
@@ -386,6 +405,7 @@ function scrollToTimeline() {
 
 .price-row strong {
   font-size: 28px;
+  font-variant-numeric: tabular-nums;
 }
 
 .accent {
@@ -405,6 +425,7 @@ function scrollToTimeline() {
 
 .support .accent {
   font-size: 22px;
+  font-variant-numeric: tabular-nums;
 }
 
 .support .muted,

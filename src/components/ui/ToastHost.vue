@@ -7,15 +7,17 @@ const { toasts, dismiss } = useToast()
 <template>
   <Teleport to="body">
     <div class="toasts" aria-live="polite">
-      <div
-        v-for="t in toasts"
-        :key="t.id"
-        class="toast"
-        :class="`is-${t.type}`"
-        @click="dismiss(t.id)"
-      >
-        {{ t.message }}
-      </div>
+      <TransitionGroup name="toast">
+        <div
+          v-for="t in toasts"
+          :key="t.id"
+          class="toast"
+          :class="`is-${t.type}`"
+          @click="dismiss(t.id)"
+        >
+          {{ t.message }}
+        </div>
+      </TransitionGroup>
     </div>
   </Teleport>
 </template>
@@ -40,7 +42,6 @@ const { toasts, dismiss } = useToast()
   color: #fff;
   font-size: 14px;
   box-shadow: var(--shadow-md);
-  animation: in 220ms var(--ease);
   cursor: pointer;
 }
 
@@ -52,14 +53,31 @@ const { toasts, dismiss } = useToast()
   background: #5c1d18;
 }
 
-@keyframes in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.toast-enter-active {
+  transition:
+    opacity var(--dur-hover) var(--ease),
+    transform var(--dur-hover) var(--ease);
+}
+
+.toast-leave-active {
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out);
+  position: absolute;
+  width: min(360px, calc(100vw - 40px));
+}
+
+.toast-move {
+  transition: transform var(--dur-list) var(--ease);
+}
+
+.toast-enter-from {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 </style>

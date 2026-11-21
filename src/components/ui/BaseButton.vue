@@ -14,17 +14,31 @@ defineProps({
   },
   disabled: Boolean,
   block: Boolean,
+  arrow: Boolean,
 })
 </script>
 
 <template>
   <button
     class="btn"
-    :class="[`is-${variant}`, `is-${size}`, { 'is-block': block }]"
+    :class="[`is-${variant}`, `is-${size}`, { 'is-block': block, 'has-arrow': arrow }]"
     :type="type"
     :disabled="disabled"
   >
-    <slot />
+    <span class="btn__label"><slot /></span>
+    <svg
+      v-if="arrow"
+      class="btn__arrow"
+      viewBox="0 0 16 16"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.6"
+      aria-hidden="true"
+    >
+      <path d="M3 8h10M9 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
   </button>
 </template>
 
@@ -38,21 +52,32 @@ defineProps({
   font-weight: 500;
   letter-spacing: 0.01em;
   transition:
-    background var(--dur) var(--ease),
-    color var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    transform var(--dur) var(--ease),
-    opacity var(--dur) var(--ease);
+    background var(--dur-hover) var(--ease),
+    color var(--dur-hover) var(--ease),
+    border-color var(--dur-hover) var(--ease),
+    opacity var(--dur-hover) var(--ease),
+    transform var(--dur-press) var(--ease);
   white-space: nowrap;
 }
 
 .btn:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 
 .btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.btn__arrow {
+  transition: transform var(--dur-hover) var(--ease);
+  flex-shrink: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .has-arrow:hover:not(:disabled) .btn__arrow {
+    transform: translateX(3px);
+  }
 }
 
 .is-block {
@@ -82,8 +107,10 @@ defineProps({
   color: #fff;
 }
 
-.is-primary:hover:not(:disabled) {
-  background: #2a2a2a;
+@media (hover: hover) and (pointer: fine) {
+  .is-primary:hover:not(:disabled) {
+    background: #2a2a2a;
+  }
 }
 
 .is-secondary {
@@ -92,8 +119,10 @@ defineProps({
   border: 1px solid var(--line);
 }
 
-.is-secondary:hover:not(:disabled) {
-  border-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .is-secondary:hover:not(:disabled) {
+    border-color: var(--ink);
+  }
 }
 
 .is-accent {
@@ -101,8 +130,10 @@ defineProps({
   color: #fff;
 }
 
-.is-accent:hover:not(:disabled) {
-  filter: brightness(0.95);
+@media (hover: hover) and (pointer: fine) {
+  .is-accent:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
 }
 
 .is-ghost {
@@ -110,8 +141,10 @@ defineProps({
   color: var(--ink);
 }
 
-.is-ghost:hover:not(:disabled) {
-  background: rgba(23, 23, 23, 0.04);
+@media (hover: hover) and (pointer: fine) {
+  .is-ghost:hover:not(:disabled) {
+    background: rgba(23, 23, 23, 0.04);
+  }
 }
 
 .is-light {
@@ -119,8 +152,10 @@ defineProps({
   color: var(--ink);
 }
 
-.is-light:hover:not(:disabled) {
-  background: #f0f0ec;
+@media (hover: hover) and (pointer: fine) {
+  .is-light:hover:not(:disabled) {
+    background: #f0f0ec;
+  }
 }
 
 .is-dark-ghost {
@@ -129,7 +164,9 @@ defineProps({
   border: 1px solid rgba(255, 255, 255, 0.28);
 }
 
-.is-dark-ghost:hover:not(:disabled) {
-  border-color: #fff;
+@media (hover: hover) and (pointer: fine) {
+  .is-dark-ghost:hover:not(:disabled) {
+    border-color: #fff;
+  }
 }
 </style>
